@@ -1,2 +1,5 @@
-# visualisation_of_information_kpi
-ТМ-31мп Чупров Владислав 31 варіант
+# WebGL
+
+Project that accompanies VGGI credit module.
+
+Visit vggi-kpi.blogspot.com for more information
