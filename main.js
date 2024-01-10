@@ -121,7 +121,7 @@ function CreateSurfaceData() {
   const gamma = 2;
   const delta = 1;
 
-
+  // Функция для расчета координаты F
   const calculateF = (alpha, beta, theta) => {
     return (
         (alpha * beta) /
@@ -133,7 +133,7 @@ function CreateSurfaceData() {
     );
   };
 
-
+  // Функция для получения вершины на поверхности
   const getPoint = (phi, theta) => {
     const phiRad = deg2rad(phi);
     const thetaRad = deg2rad(theta);
@@ -157,7 +157,7 @@ function CreateSurfaceData() {
     return [x, y, z]
   }
 
-
+  // Функция для расчета нормали
   const calculateNormal = (phi, theta) => {
     let epsilon = 0.0001
     let point = getPoint(phi, theta)
@@ -173,7 +173,7 @@ function CreateSurfaceData() {
     return normal
   }
 
-
+  // Заполнение списков вершин и нормалей
   for (let phi = 0; phi <= 360; phi += 5) {
     for (let theta = 0; theta <= 360; theta += 5) {
       let point1 = getPoint(phi, theta)
