@@ -216,7 +216,7 @@ function CreateSphereSurfaceData() {
   }
   return vertexList
 }
-const radius = 0.1;
+const radius = 0.2;
 function sphereSurface(long, lat) {
   return {
     x: radius * Math.cos(long) * Math.sin(lat),
