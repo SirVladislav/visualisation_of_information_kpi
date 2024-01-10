@@ -4,6 +4,7 @@ let gl; // The webgl context.
 let surface; // A surface model
 let shProgram; // A shader program
 let spaceball; // A SimpleRotator object that lets the user rotate the view by mouse.
+let sphere;
 
 function deg2rad(angle) {
   return (angle * Math.PI) / 180;
@@ -94,83 +95,134 @@ function draw() {
 
   /* Draw the six faces of a cube, with different colors. */
   gl.uniform4fv(shProgram.iColor, [1, 1, 0, 1]);
+  gl.uniform3fv(shProgram.iLightPos, [3 * Math.cos(Date.now() * 0.001), 3 * Math.sin(Date.now() * 0.001), 1]);
 
   surface.Draw();
+  gl.uniform4fv(shProgram.iColor, [1, 1, 0, 255]);
+  gl.uniformMatrix4fv(
+    shProgram.iModelViewProjectionMatrix,
+    false,
+    m4.multiply(modelViewProjection,
+      m4.translation(3 * Math.cos(Date.now() * 0.001), 3 * Math.sin(Date.now() * 0.001), 1))
+  );
+  sphere.Draw();
+}
+
+function animate() {
+  draw()
+  window.requestAnimationFrame(animate)
 }
 
 function CreateSurfaceData() {
-  let verticesArray = [],
-      normalsArray = [];
-  const paramA = 1.5;
-  const paramB = 3;
-  const paramC = 2;
-  const paramD = 1;
+  let vertices = [],
+      normals = [];
+  const alpha = 1.5;
+  const beta = 3;
+  const gamma = 2;
+  const delta = 1;
 
-  const calculateF = (paramA, paramB, angleV) => {
+
+  const calculateF = (alpha, beta, theta) => {
     return (
-        (paramA * paramB) /
+        (alpha * beta) /
         Math.sqrt(
-            Math.pow(paramA, 2) +
-            Math.pow(Math.sin(angleV), 2) +
-            Math.pow(paramB, 2) * Math.pow(Math.cos(angleV), 2)
+            Math.pow(alpha, 2) +
+            Math.pow(Math.sin(theta), 2) +
+            Math.pow(beta, 2) * Math.pow(Math.cos(theta), 2)
         )
     );
   };
 
-  const computeVertex = (angleU, angleV) => {
-    const radU = deg2rad(angleU);
-    const radV = deg2rad(angleV);
-    const xCoord =
-        (1 / 2) *
-        (calculateF(paramA, paramB, radV) * (1 + Math.cos(radU)) +
-            ((Math.pow(paramD, 2) - Math.pow(paramC, 2)) * (1 - Math.cos(radU))) /
-            calculateF(paramA, paramB, radV)) *
-        Math.cos(radV);
-    const yCoord =
-        (1 / 2) *
-        (calculateF(paramA, paramB, radV) * (1 + Math.cos(radU)) +
-            ((Math.pow(paramD, 2) - Math.pow(paramC, 2)) * (1 - Math.cos(radU))) /
-            calculateF(paramA, paramB, radV)) *
-        Math.sin(radV);
-    const zCoord =
-        (1 / 2) *
-        (calculateF(paramA, paramB, radV) -
-            (Math.pow(paramD, 2) - Math.pow(paramC, 2)) / calculateF(paramA, paramB, radV)) *
-        Math.sin(radU);
-    return [xCoord, yCoord, zCoord];
-  };
 
-  const computeNormal = (angleU, angleV) => {
-    let smallDelta = 0.0001;
-    let mainVertex = computeVertex(angleU, angleV);
-    let uVertex = computeVertex(angleU + smallDelta, angleV);
-    let vVertex = computeVertex(angleU, angleV + smallDelta);
-    let gradientU = [];
-    let gradientV = [];
+  const getPoint = (phi, theta) => {
+    const phiRad = deg2rad(phi);
+    const thetaRad = deg2rad(theta);
+    const x =
+        (1 / 2) *
+        (calculateF(alpha, beta, thetaRad) * (1 + Math.cos(phiRad)) +
+            ((Math.pow(delta, 2) - Math.pow(gamma, 2)) * (1 - Math.cos(phiRad))) /
+            calculateF(alpha, beta, thetaRad)) *
+        Math.cos(thetaRad);
+    const y =
+        (1 / 2) *
+        (calculateF(alpha, beta, thetaRad) * (1 + Math.cos(phiRad)) +
+            ((Math.pow(delta, 2) - Math.pow(gamma, 2)) * (1 - Math.cos(phiRad))) /
+            calculateF(alpha, beta, thetaRad)) *
+        Math.sin(thetaRad);
+    const z =
+        (1 / 2) *
+        (calculateF(alpha, beta, thetaRad) -
+            (Math.pow(delta, 2) - Math.pow(gamma, 2)) / calculateF(alpha, beta, thetaRad)) *
+        Math.sin(phiRad);
+    return [x, y, z]
+  }
+
+
+  const calculateNormal = (phi, theta) => {
+    let epsilon = 0.0001
+    let point = getPoint(phi, theta)
+    let pointPhi = getPoint(phi + epsilon, theta)
+    let pointTheta = getPoint(phi, theta + epsilon)
+    let dPhi = []
+    let dTheta = []
     for (let i = 0; i < 3; i++) {
-      gradientU.push((mainVertex[i] - uVertex[i]) / smallDelta);
-      gradientV.push((mainVertex[i] - vVertex[i]) / smallDelta);
+      dPhi.push((point[i] - pointPhi[i]) / epsilon)
+      dTheta.push((point[i] - pointTheta[i]) / epsilon)
     }
-    const normalVector = m4.normalize(m4.cross(gradientU, gradientV));
-    return normalVector;
-  };
+    const normal = m4.normalize(m4.cross(dPhi, dTheta))
+    return normal
+  }
 
-  for (let angleU = 0; angleU <= 360; angleU += 5) {
-    for (let angleV = 0; angleV <= 360; angleV += 5) {
-      let vert1 = computeVertex(angleU, angleV);
-      let vert2 = computeVertex(angleU + 5, angleV);
-      let vert3 = computeVertex(angleU, angleV + 5);
-      let vert4 = computeVertex(angleU + 5, angleV + 5);
-      let norm1 = computeNormal(angleU, angleV);
-      let norm2 = computeNormal(angleU + 5, angleV);
-      let norm3 = computeNormal(angleU, angleV + 5);
-      let norm4 = computeNormal(angleU + 5, angleV + 5);
-      verticesArray.push(...vert1, ...vert2, ...vert3, ...vert3, ...vert2, ...vert4);
-      normalsArray.push(...norm1, ...norm2, ...norm3, ...norm3, ...norm2, ...norm4);
+
+  for (let phi = 0; phi <= 360; phi += 5) {
+    for (let theta = 0; theta <= 360; theta += 5) {
+      let point1 = getPoint(phi, theta)
+      let point2 = getPoint(phi + 5, theta)
+      let point3 = getPoint(phi, theta + 5)
+      let point4 = getPoint(phi + 5, theta + 5)
+      let normal1 = calculateNormal(phi, theta)
+      let normal2 = calculateNormal(phi + 5, theta)
+      let normal3 = calculateNormal(phi, theta + 5)
+      let normal4 = calculateNormal(phi + 5, theta + 5)
+      vertices.push(...point1, ...point2, ...point3, ...point3, ...point2, ...point4);
+      normals.push(...normal1, ...normal2, ...normal3, ...normal3, ...normal2, ...normal4);
     }
   }
 
-  return [verticesArray, normalsArray];
+  return [vertices, normals];
+}
+
+function CreateSphereSurfaceData() {
+  let vertexList = [];
+
+  let u = 0,
+    t = 0;
+  while (u < Math.PI * 2) {
+    while (t < Math.PI) {
+      let v = sphereSurface(u, t);
+      let w = sphereSurface(u + 0.1, t);
+      let wv = sphereSurface(u, t + 0.1);
+      let ww = sphereSurface(u + 0.1, t + 0.1);
+      vertexList.push(v.x, v.y, v.z);
+      vertexList.push(w.x, w.y, w.z);
+      vertexList.push(wv.x, wv.y, wv.z);
+      vertexList.push(wv.x, wv.y, wv.z);
+      vertexList.push(w.x, w.y, w.z);
+      vertexList.push(ww.x, ww.y, ww.z);
+      t += 0.1;
+    }
+    t = 0;
+    u += 0.1;
+  }
+  return vertexList
+}
+const radius = 0.1;
+function sphereSurface(long, lat) {
+  return {
+    x: radius * Math.cos(long) * Math.sin(lat),
+    y: radius * Math.sin(long) * Math.sin(lat),
+    z: radius * Math.cos(lat)
+  }
 }
 
 /* Initialize the WebGL context. Called from init() */
@@ -191,9 +243,12 @@ function initGL() {
     'NormalM'
   );
   shProgram.iColor = gl.getUniformLocation(prog, 'color');
+  shProgram.iLightPos = gl.getUniformLocation(prog, 'lightPos');
 
   surface = new Model('Surface');
   surface.BufferData(...CreateSurfaceData());
+  sphere = new Model()
+  sphere.BufferData(CreateSphereSurfaceData(), CreateSphereSurfaceData())
 
   gl.enable(gl.DEPTH_TEST);
 }
@@ -258,4 +313,5 @@ function init() {
   spaceball = new TrackballRotator(canvas, draw, 0);
 
   draw();
+  animate()
 }
